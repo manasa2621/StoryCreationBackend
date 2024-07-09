@@ -9,7 +9,13 @@ const multer = require("multer");
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.json());
 
@@ -86,22 +92,24 @@ const isAuthenticated = async (req, res, next) => {
 };
 
 app.get("/", (req, res) => {
-  res.json({ Welcome: "To the SwipTory Server",
-            Health: "Good, go to /health to get more details" });
+  res.json({
+    Welcome: "To the SwipTory Server",
+    Health: "Good, go to /health to get more details",
+  });
 });
 
-app.get('/health', (req, res)=>{
-    if(mongoose.connection.readyState==1)
+app.get("/health", (req, res) => {
+  if (mongoose.connection.readyState == 1)
     res.json({
-        Server: 'IS RUNNING ON THE DESIGNATED PORT',
-        Database: 'Connection is succesful'
-    })
-    else 
+      Server: "IS RUNNING ON THE DESIGNATED PORT",
+      Database: "Connection is succesful",
+    });
+  else
     res.json({
-        Server: 'IS RUNNING ON THE DESIGNATED PORT',
-        Database: 'There is some problem connecting to the database'
-    })
-})
+      Server: "IS RUNNING ON THE DESIGNATED PORT",
+      Database: "There is some problem connecting to the database",
+    });
+});
 
 app.post("/register", async (req, res) => {
   const { username, password } = req.body;
@@ -172,7 +180,7 @@ app.post("/story", isAuthenticated, async (req, res) => {
         description,
         imageURL,
         category,
-        createdByUser
+        createdByUser,
       });
       return res.json({
         Success: "Story Successfully Uploaded",
@@ -197,7 +205,7 @@ app.post("/story", isAuthenticated, async (req, res) => {
         imageURL,
         category,
         iteration: iteration + 1,
-        createdByUser
+        createdByUser,
       });
       return res.json({
         Success: "Story Successfully Uploaded",
@@ -279,39 +287,45 @@ app.get("/story/:storyID", async (req, res) => {
     const found = await swipToryStory.find({ storyID });
     return res.json(found);
   } catch (e) {
-    return res.json({ "Error": "Contact Developer" });
+    return res.json({ Error: "Contact Developer" });
   }
 });
 
-app.get("/user/story/:username", async(req, res)=>{
+app.get("/user/story/:username", async (req, res) => {
   try {
     const username = req.params.username;
-    if(!username) {
-      return res.json({error: "Not provided with the username params."})
+    if (!username) {
+      return res.json({ error: "Not provided with the username params." });
     }
-    const found = await swipToryStory.find({createdByUser: username}).sort({ _id: -1 });
-    if(!found[0]) {
-      return res.json({error: "This user hasn't created any stories yet."})
+    const found = await swipToryStory
+      .find({ createdByUser: username })
+      .sort({ _id: -1 });
+    if (!found[0]) {
+      return res.json({ error: "This user hasn't created any stories yet." });
     }
-    return res.json(found)
-  } 
-  catch (e) {
-    console.log(e)
+    return res.json(found);
+  } catch (e) {
+    console.log(e);
   }
-})
+});
 
 app.post("/like", isAuthenticated, async (req, res) => {
   try {
     const user = req.body.username;
     const storyID = req.body.storyID;
     const iteration = req.body.iteration;
-    const userArray = [user]
-    if(!user || !storyID || !iteration) {
-      return res.json({error: "Not provided username or storyID or iteration."})
+    const userArray = [user];
+    if (!user || !storyID || !iteration) {
+      return res.json({
+        error: "Not provided username or storyID or iteration.",
+      });
     }
-    const check = await swipToryStory.findOne({ storyID, iteration, likes : { $in: userArray}});
-    if (check)
-      return res.json({ error: "User has already liked the story." });
+    const check = await swipToryStory.findOne({
+      storyID,
+      iteration,
+      likes: { $in: userArray },
+    });
+    if (check) return res.json({ error: "User has already liked the story." });
     const found = await swipToryStory.findOneAndUpdate(
       { storyID, iteration: iteration },
       { $push: { likes: user } },
@@ -331,46 +345,50 @@ app.put("/like", isAuthenticated, async (req, res) => {
     const userArray = [user];
     const storyID = req.body.storyID;
     const iteration = req.body.iteration;
-    const check = await swipToryStory.findOne({ storyID, iteration, likes : { $in: userArray}});
-    if(check) {
-      const response =  await swipToryStory.findOneAndUpdate({ storyID, iteration: iteration },
+    const check = await swipToryStory.findOne({
+      storyID,
+      iteration,
+      likes: { $in: userArray },
+    });
+    if (check) {
+      const response = await swipToryStory.findOneAndUpdate(
+        { storyID, iteration: iteration },
         { $pull: { likes: user } },
         {
           new: true,
-        })
-      if(response)
-      return res.json(response)
+        }
+      );
+      if (response) return res.json(response);
     }
-    return res.json({notFound: "Not Found"})
+    return res.json({ notFound: "Not Found" });
+  } catch (e) {
+    return res.json({ err: e });
   }
-  catch(e) {
-    return res.json({err: e});
-  }
-})
+});
 
-app.get('/like/:storyID', isAuthenticated, async (req, res) => {
+app.get("/like/:storyID", isAuthenticated, async (req, res) => {
   try {
     const storyID = req.params.storyID;
     const iteration = req.query.iteration;
     const username = req.query.username;
     const user = [username];
-    if(!storyID || !iteration || !username)
-    return res.json({error: "not provided with storyID or iteration"})
-    const check = await swipToryStory.findOne({ storyID, iteration, likes : { $in: user}});
-    if(check) {
-      return res.json({userLiked: true,
-        likes: check.likes});
+    if (!storyID || !iteration || !username)
+      return res.json({ error: "not provided with storyID or iteration" });
+    const check = await swipToryStory.findOne({
+      storyID,
+      iteration,
+      likes: { $in: user },
+    });
+    if (check) {
+      return res.json({ userLiked: true, likes: check.likes });
     }
-    let likes = await swipToryStory.findOne({storyID, iteration});
-    if(likes)
-    likes = likes.likes;
-    return res.json({userLiked: false,
-      likes: likes})
+    let likes = await swipToryStory.findOne({ storyID, iteration });
+    if (likes) likes = likes.likes;
+    return res.json({ userLiked: false, likes: likes });
+  } catch (e) {
+    return res.json({ err: e });
   }
-  catch(e) {
-    return res.json({err: e});
-  }
-})
+});
 
 app.post("/bookmark", isAuthenticated, async (req, res) => {
   try {
@@ -398,28 +416,32 @@ app.post("/bookmark", isAuthenticated, async (req, res) => {
 
 app.get("/bookmark/:username", isAuthenticated, async (req, res) => {
   try {
-  const user = req.params.username;
-  const storyID = req.query.storyID;
-  const storyIDArray = [storyID];
-  const check = await swipToryUser.findOne({username: user, bookmarks: { $in: storyIDArray }});
-  if(check) {
-    return res.json({found: true})
+    const user = req.params.username;
+    const storyID = req.query.storyID;
+    const storyIDArray = [storyID];
+    const check = await swipToryUser.findOne({
+      username: user,
+      bookmarks: { $in: storyIDArray },
+    });
+    if (check) {
+      return res.json({ found: true });
+    } else {
+      return res.json({ notFound: "Not Found" });
+    }
+  } catch (e) {
+    res.json({ err: e });
+    console.log(e);
   }
-  else {
-    return res.json({notFound: "Not Found"})
-  }
-  }
-  catch(e) {
-    res.json({err: e})
-    console.log(e)
-  }
-})
+});
 
 app.put("/bookmark", isAuthenticated, async (req, res) => {
   try {
     const user = req.body.username;
     const storyID = req.body.storyID;
-    const check = await swipToryUser.findOne({ username: user, bookmarks: { $in : storyID} });
+    const check = await swipToryUser.findOne({
+      username: user,
+      bookmarks: { $in: storyID },
+    });
     if (check) {
       const found = await swipToryUser.findOneAndUpdate(
         { username: user },
@@ -438,24 +460,24 @@ app.put("/bookmark", isAuthenticated, async (req, res) => {
   }
 });
 
-app.get('/user/bookmarks/:username', async (req, res) => {
+app.get("/user/bookmarks/:username", async (req, res) => {
   try {
     const username = req.params.username;
     const response = await swipToryUser.findOne({
-      username
-    })
-    if(response) {
+      username,
+    });
+    if (response) {
       let userBookmarks = response.bookmarks;
-      userBookmarks = userBookmarks.filter((item,
-        index) => userBookmarks.indexOf(item) === index);
-      return  res.json(userBookmarks);
+      userBookmarks = userBookmarks.filter(
+        (item, index) => userBookmarks.indexOf(item) === index
+      );
+      return res.json(userBookmarks);
     }
-    return res.json({notFound: "User does not exist!"})
+    return res.json({ notFound: "User does not exist!" });
+  } catch (e) {
+    res.send(e);
   }
-  catch(e) {
-    res.send(e)
-  }
-})
+});
 
 app.post("/image", upload.single("image"), async (req, res) => {
   try {
@@ -497,23 +519,27 @@ app.post("/verify-token", isAuthenticated, (req, res) => {
   res.send("Token Valid");
 });
 
-app.get("/storyid", async (req, res) => {
+app.get(
+  "/storyid",
+  async (req, res) => {
     try {
       let response = await swipToryStory.find().sort({ _id: -1 }).limit(1);
-      if(!response[0]) {
+      if (!response[0]) {
         response = {
-          storyID: 0
-        }
+          storyID: 0,
+        };
         return res.json(response);
       }
       response = {
-        storyID: response[0].storyID + 1
-      }
-      res.send(response)
-    } catch(e) {
-      console.log(e)
+        storyID: response[0].storyID + 1,
+      };
+      res.send(response);
+    } catch (e) {
+      console.log(e);
     }
-}, [])
+  },
+  []
+);
 
 app.use("/", (req, res) => {
   res.status(404);
@@ -522,22 +548,23 @@ app.use("/", (req, res) => {
   });
 });
 
-
-app.get('/user/bookmarks/:username', async (req, res) => {
+app.get("/user/bookmarks/:username", async (req, res) => {
   try {
     const username = req.params.username;
-    
+
     // Assuming 'swipToryUser' is the mongoose model for user data
     const user = await swipToryUser.findOne({ username });
-    
+
     if (!user) {
       return res.status(404).json({ error: "User does not exist!" });
     }
 
     const userBookmarks = user.bookmarks || [];
-    
+
     // Assuming 'slides' is the mongoose model for slides data
-    const bookmarkedSlides = await slides.find({ storyID: { $in: userBookmarks } });
+    const bookmarkedSlides = await slides.find({
+      storyID: { $in: userBookmarks },
+    });
 
     return res.json(bookmarkedSlides);
   } catch (e) {
@@ -555,5 +582,3 @@ app.listen(process.env.SERVER_PORT, async () => {
     console.log(e);
   }
 });
-
-
